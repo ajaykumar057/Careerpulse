@@ -8,9 +8,9 @@ from email.message import EmailMessage
 import os
 
 # ---------- CONFIG ----------
-GROQ_API_KEY = os.getenv("GROQ_API_KEY") or "your-groq-api-key"  # Replace with your actual Groq key
+GROQ_API_KEY = os.getenv("GROQ_API_KEY") or "your-groq-api-key"
 EMAIL_SENDER = "ajayburdak266@gmail.com"
-EMAIL_PASSWORD = "lwuu paob htjz ubhm"  # App password from Gmail
+EMAIL_PASSWORD = "pnvp rgog gjrv xvcv"  # Use Gmail app password
 
 client = Groq(api_key=GROQ_API_KEY)
 
@@ -50,7 +50,7 @@ def suggest_certifications(careers):
     certs = ""
     for career in careers:
         if career in cert_data:
-            certs += f"\n**{career} Certifications:**\n"
+            certs += f"\n{career} Certifications:\n"
             for c in cert_data[career]:
                 certs += f"- {c}\n"
     return certs
@@ -82,14 +82,11 @@ def send_email(receiver, file_path, name):
         print("📧 Email error:", e)
         return False
 
-# ---------- MAIN FUNCTION ----------
+# ---------- MAIN BOT FUNCTION ----------
 def career_advisor(name, email, interests, skills, goals, experience, resume):
     print("▶️ Function called!")
-    print("📥 Inputs:", name, email, interests, skills, goals, experience)
-
     try:
         extracted = extract_resume_data(resume) if resume else []
-        print("🧠 Extracted Resume Skills:", extracted)
         combined_skills = f"{skills}, " + ", ".join(extracted)
 
         prompt = f"""
@@ -102,20 +99,18 @@ Analyze the following:
 - Skills: {combined_skills}
 - Goals: {goals}
 
-Suggest 2-3 suitable career paths with short explanations.
-List useful certifications if relevant.
-        """
+Suggest 2-3 suitable career paths with reasons.
+List required skills or certifications if applicable.
+"""
 
-        print("🧠 Calling Groq...")
         res = client.chat.completions.create(
             model="llama3-70b-8192",
             messages=[{"role": "user", "content": prompt}]
         )
 
         output = res.choices[0].message.content.strip()
-        print("✅ Groq Response:", output)
 
-        # Extract careers
+        # Extract career titles
         suggested_careers = []
         for line in output.split("\n"):
             if line.strip().startswith("1.") or line.strip().startswith("- "):
@@ -124,20 +119,15 @@ List useful certifications if relevant.
         certs = suggest_certifications(suggested_careers[:2])
         final_output = output + "\n\n" + certs
 
-        # Generate PDF and send email
         pdf_path = generate_pdf(name, final_output)
-        email_sent = send_email(email, pdf_path, name)
+        email_status = send_email(email, pdf_path, name)
 
-        if email_sent:
-            return f"✅ Career report sent to **{email}**!\n\n---\n\n{final_output}"
+        if email_status:
+            notice = f"✅ Report sent to {email}\n\n"
         else:
-            return f"""
-❌ Failed to send email. But here’s your career report:
+            notice = f"⚠️ Email failed. Report saved locally as PDF\n\n"
 
-{final_output}
-
-📥 You can download the PDF manually from your console folder (CareerReport.pdf)
-"""
+        return notice + final_output
 
     except Exception as e:
         print("❌ Error:", e)
@@ -145,20 +135,20 @@ List useful certifications if relevant.
 
 # ---------- GRADIO UI ----------
 with gr.Blocks(theme=gr.themes.Soft()) as demo:
-    gr.Markdown("# 🎯 CareerPulse – Smart Career Guidance Chatbot")
+    gr.Markdown("## 🎯 CareerPulse – Smart Career Guidance Chatbot")
 
     with gr.Row():
-        name = gr.Textbox(label="Your Name", placeholder="Ajay")
-        email = gr.Textbox(label="Your Email", placeholder="ajay@example.com")
+        name = gr.Textbox(label="Your Name")
+        email = gr.Textbox(label="Your Email")
         experience = gr.Dropdown(["Student", "Fresher", "1-3 years", "3+ years"], label="Experience Level")
 
-    interests = gr.Textbox(label="Your Interests", placeholder="AI, Design, Finance...")
-    skills = gr.Textbox(label="Your Key Skills", placeholder="Python, SQL, React...")
-    goals = gr.Textbox(label="Career Goals", placeholder="Become a data scientist...")
+    interests = gr.Textbox(label="Your Interests")
+    skills = gr.Textbox(label="Your Key Skills")
+    goals = gr.Textbox(label="Career Goals")
     resume = gr.File(label="Upload Resume (.docx)", file_types=[".docx"])
 
     submit = gr.Button("Get Career Report 🚀")
-    output = gr.Markdown(label="Career Report")
+    output = gr.Textbox(label="Your Career Report", lines=25)
 
     submit.click(
         career_advisor,
