@@ -8,7 +8,7 @@ from email.message import EmailMessage
 import os
 
 # ---------- CONFIG ----------
-GROQ_API_KEY = os.getenv("GROQ_API_KEY") or "your-groq-api-key"  # Replace with your key or use dotenv
+GROQ_API_KEY = os.getenv("GROQ_API_KEY") or "your-groq-api-key"  # Replace with your actual Groq key
 EMAIL_SENDER = "ajayburdak266@gmail.com"
 EMAIL_PASSWORD = "lwuu paob htjz ubhm"  # App password from Gmail
 
@@ -77,10 +77,12 @@ def send_email(receiver, file_path, name):
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
             smtp.login(EMAIL_SENDER, EMAIL_PASSWORD)
             smtp.send_message(msg)
+        return True
     except Exception as e:
         print("📧 Email error:", e)
+        return False
 
-# ---------- MAIN BOT FUNCTION ----------
+# ---------- MAIN FUNCTION ----------
 def career_advisor(name, email, interests, skills, goals, experience, resume):
     print("▶️ Function called!")
     print("📥 Inputs:", name, email, interests, skills, goals, experience)
@@ -100,7 +102,8 @@ Analyze the following:
 - Skills: {combined_skills}
 - Goals: {goals}
 
-Suggest 2-3 suitable career paths with a short reason for each. List required skills or certifications if needed.
+Suggest 2-3 suitable career paths with short explanations.
+List useful certifications if relevant.
         """
 
         print("🧠 Calling Groq...")
@@ -112,7 +115,7 @@ Suggest 2-3 suitable career paths with a short reason for each. List required sk
         output = res.choices[0].message.content.strip()
         print("✅ Groq Response:", output)
 
-        # Extract top careers from response
+        # Extract careers
         suggested_careers = []
         for line in output.split("\n"):
             if line.strip().startswith("1.") or line.strip().startswith("- "):
@@ -121,12 +124,20 @@ Suggest 2-3 suitable career paths with a short reason for each. List required sk
         certs = suggest_certifications(suggested_careers[:2])
         final_output = output + "\n\n" + certs
 
-        # Send report
+        # Generate PDF and send email
         pdf_path = generate_pdf(name, final_output)
-        send_email(email, pdf_path, name)
+        email_sent = send_email(email, pdf_path, name)
 
-        print("📤 Returning to UI...")
-        return final_output
+        if email_sent:
+            return f"✅ Career report sent to **{email}**!\n\n---\n\n{final_output}"
+        else:
+            return f"""
+❌ Failed to send email. But here’s your career report:
+
+{final_output}
+
+📥 You can download the PDF manually from your console folder (CareerReport.pdf)
+"""
 
     except Exception as e:
         print("❌ Error:", e)
