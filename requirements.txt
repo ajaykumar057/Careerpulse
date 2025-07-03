@@ -1,0 +1,4 @@
+gradio
+fpdf
+docx2txt
+llama-cpp-python  # Or groq/openai/transformers depending on LLM
